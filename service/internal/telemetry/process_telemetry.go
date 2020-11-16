@@ -18,6 +18,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"time"
 
 	"github.com/shirou/gopsutil/process"
@@ -82,6 +83,18 @@ var viewSysMem = &view.View{
 	TagKeys:     nil,
 }
 
+var mRuntimeNumGoroutine = stats.Int64(
+	"process/runtime/num_goroutines",
+	"Number of running goroutines",
+	stats.UnitDimensionless)
+var viewRuntimeNumGoroutines = &view.View{
+	Name:        mRuntimeNumGoroutine.Name(),
+	Description: mRuntimeNumGoroutine.Description(),
+	Measure:     mRuntimeNumGoroutine,
+	Aggregation: view.LastValue(),
+	TagKeys:     nil,
+}
+
 var mCPUSeconds = stats.Float64(
 	"process/cpu_seconds",
 	"Total CPU user and system time in seconds",
@@ -106,13 +119,37 @@ var viewRSSMemory = &view.View{
 	TagKeys:     nil,
 }
 
+var mRuntimeTotalGCSeconds = stats.Float64(
+	"process/gc_seconds",
+	"Total GC run time in seconds",
+	stats.UnitSeconds)
+var viewRuntimeTotalGCSeconds = &view.View{
+	Name:        mRuntimeTotalGCSeconds.Name(),
+	Description: mRuntimeTotalGCSeconds.Description(),
+	Measure:     mRuntimeTotalGCSeconds,
+	Aggregation: view.LastValue(),
+	TagKeys:     nil,
+}
+
+var mRuntimeTotalNumGCRuns = stats.Int64(
+	"process/num_gc_runs",
+	"Total number of GC runs",
+	stats.UnitDimensionless)
+var viewRuntimeTotalNumGCRuns = &view.View{
+	Name:        mRuntimeTotalNumGCRuns.Name(),
+	Description: mRuntimeTotalNumGCRuns.Description(),
+	Measure:     mRuntimeTotalNumGCRuns,
+	Aggregation: view.LastValue(),
+	TagKeys:     nil,
+}
+
 // NewProcessMetricsViews creates a new set of ProcessMetrics (mem, cpu) that can be used to measure
 // basic information about this process.
 func NewProcessMetricsViews(ballastSizeBytes uint64) (*ProcessMetricsViews, error) {
 	pmv := &ProcessMetricsViews{
 		prevTimeUnixNano: time.Now().UnixNano(),
 		ballastSizeBytes: ballastSizeBytes,
-		views:            []*view.View{viewProcessUptime, viewAllocMem, viewTotalAllocMem, viewSysMem, viewCPUSeconds, viewRSSMemory},
+		views:            []*view.View{viewProcessUptime, viewAllocMem, viewTotalAllocMem, viewSysMem, viewCPUSeconds, viewRSSMemory, viewRuntimeNumGoroutines, viewRuntimeTotalGCSeconds, viewRuntimeTotalNumGCRuns},
 		done:             make(chan struct{}),
 	}
 
@@ -163,6 +200,12 @@ func (pmv *ProcessMetricsViews) updateViews() {
 	stats.Record(context.Background(), mRuntimeAllocMem.M(int64(ms.Alloc)))
 	stats.Record(context.Background(), mRuntimeTotalAllocMem.M(int64(ms.TotalAlloc)))
 	stats.Record(context.Background(), mRuntimeSysMem.M(int64(ms.Sys)))
+	stats.Record(context.Background(), mRuntimeNumGoroutine.M(int64(runtime.NumGoroutine())))
+
+	gs := &debug.GCStats{}
+	debug.ReadGCStats(gs)
+	stats.Record(context.Background(), mRuntimeTotalGCSeconds.M(gs.PauseTotal.Seconds()))
+	stats.Record(context.Background(), mRuntimeTotalNumGCRuns.M(gs.NumGC))
 
 	if pmv.proc != nil {
 		if times, err := pmv.proc.Times(); err == nil {

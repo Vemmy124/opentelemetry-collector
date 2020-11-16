@@ -166,5 +166,5 @@ func assertNetworkIOMetricValid(t *testing.T, metric pdata.Metric, descriptor pd
 func assertNetworkTCPConnectionsMetricValid(t *testing.T, metric pdata.Metric) {
 	internal.AssertDescriptorEqual(t, networkTCPConnectionsDescriptor, metric)
 	internal.AssertIntSumMetricLabelExists(t, metric, 0, stateLabelName)
-	assert.Equal(t, 12, metric.IntSum().DataPoints().Len())
+	assert.Equal(t, 13, metric.IntSum().DataPoints().Len())
 }

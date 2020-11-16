@@ -38,8 +38,11 @@ func TestProcessTelemetry(t *testing.T) {
 		"process/runtime/heap_alloc_bytes",
 		"process/runtime/total_alloc_bytes",
 		"process/runtime/total_sys_memory_bytes",
+		"process/runtime/num_goroutines",
 		"process/cpu_seconds",
 		"process/memory/rss",
+		"process/gc_seconds",
+		"process/num_gc_runs",
 	}
 	processViews := pmv.Views()
 	assert.Len(t, processViews, len(expectedViews))
@@ -66,7 +69,7 @@ func TestProcessTelemetry(t *testing.T) {
 			value = row.Data.(*view.LastValueData).Value
 		}
 
-		if viewName == "process/uptime" || viewName == "process/cpu_seconds" {
+		if viewName == "process/uptime" || viewName == "process/cpu_seconds" || viewName == "process/gc_seconds" || viewName == "process/num_gc_runs" {
 			// This likely will still be zero when running the test.
 			assert.True(t, value >= 0, viewName)
 			continue
